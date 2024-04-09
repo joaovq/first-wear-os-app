@@ -1,14 +1,15 @@
 package br.com.joaovq.firstwearapp.presentation
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContract
+import androidx.activity.result.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardVoice
 import androidx.compose.runtime.Composable
@@ -27,39 +28,44 @@ import androidx.wear.compose.material.Text
 fun RecognizerVoiceScreen(
     modifier: Modifier = Modifier
 ) {
-    var recognizerText: String? by rememberSaveable {
-        mutableStateOf("")
-    }
-    val launcherVoice = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult(),
-        onResult = { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                recognizerText =
-                    result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-                        .let { results ->
-                            results?.get(0)
-                        }
-            }
-        }
+    var recognizerText: String? by rememberSaveable { mutableStateOf("") }
+    val recognizerLauncher = rememberLauncherForActivityResult(
+        contract = SpeechRecognize(),
+        onResult = { result -> recognizerText = result }
     )
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically)
     ) {
-        Text(text = recognizerText.toString())
+        Text(text = recognizerText.orEmpty())
         Button(
-            onClick = {
-                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                    putExtra(
-                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-                    )
-                }
-                launcherVoice.launch(intent)
-            },
+            onClick = { recognizerLauncher.launch() },
         ) {
             Icon(imageVector = Icons.Default.KeyboardVoice, contentDescription = null)
         }
     }
+}
+
+class SpeechRecognize : ActivityResultContract<Unit, String?>() {
+    override fun createIntent(context: Context, input: Unit): Intent {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
+        }
+        return intent
+    }
+
+    override fun parseResult(resultCode: Int, intent: Intent?): String? {
+        if (resultCode == Activity.RESULT_OK) {
+            return intent?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                .let { results ->
+                    results?.get(0)
+                }
+        }
+        return null
+    }
+
 }
